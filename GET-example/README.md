@@ -3,8 +3,7 @@ This project accompanies a blog found at https://andrew-flower.com/blog/Custom-H
 
 It is an example of how to do HMAC-based auth using Spring's WebClient.
 
-Specifically this example shows how to do POST requests (where the body needs to be signed too) 
-by creating a wrapper Encoder and HttpConnector.
+Specifically this example shows how to do GET requests by creating a `ExchangeFilterFunction.ofRequestProcessor` that injects an Auth header
 
 ## Running the Application
 Navigate to http://requestbin.net/ and create a bin for testing.
