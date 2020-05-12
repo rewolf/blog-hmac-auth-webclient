@@ -1,30 +1,24 @@
 package com.github.rewolf.demo.hmacauthwebclient.client;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
-import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.codec.json.Jackson2JsonEncoder;
 import org.springframework.lang.Nullable;
 import org.springframework.util.MimeType;
 
 import java.util.Map;
-import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
 
 /**
- * A Wrapper around the default Jackson2JsonEncoder that augments the supplied ClientHttpRequest with an Authorization
- * header containing an HMAC signature generated using the encoded data.
+ * A Wrapper around the default Jackson2JsonEncoder that captures the serialized body and supplies it to a consumer
+ *
  * @author rewolf
  */
+@RequiredArgsConstructor
 public class RequestSigningJsonEncoder extends Jackson2JsonEncoder {
-    private final SignatureProvider signatureProvider;
-    private final Supplier<Optional<ClientHttpRequest>> requestSupplier;
-
-    public RequestSigningJsonEncoder(final SignatureProvider signatureProvider, final Supplier<Optional<ClientHttpRequest>> requestSupplier) {
-        this.signatureProvider = signatureProvider;
-        this.requestSupplier = requestSupplier;
-    }
+    private final Consumer<byte[]> bodySigner;
 
     @Override
     public DataBuffer encodeValue(final Object value, final DataBufferFactory bufferFactory,
@@ -34,18 +28,10 @@ public class RequestSigningJsonEncoder extends Jackson2JsonEncoder {
         final DataBuffer data = super.encodeValue(value, bufferFactory, valueType, mimeType, hints);
 
         // Interception: Generate Signature and inject header into request
-        injectSignatureWithBody(data);
+        bodySigner.accept(extractBytes(data));
 
         // Return the data as normal
         return data;
-    }
-
-    private void injectSignatureWithBody(final DataBuffer data) {
-        // Get the ClientHttpRequest from the supplier (it comes from our Http Connector)
-        final ClientHttpRequest clientHttpRequest = requestSupplier.get().orElseThrow();
-
-        // Generate the signature and inject as a header
-        signatureProvider.injectHeader(clientHttpRequest, extractBytes(data));
     }
 
     /**

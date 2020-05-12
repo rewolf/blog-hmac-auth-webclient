@@ -33,8 +33,8 @@ public class ClientConfiguration {
                                @Value("${client.secret}") final String secret) throws Exception {
 
         final SignatureProvider signatureProvider = new SignatureProvider(clientId, secret);
-        final MessageCapturingHttpConnector httpConnector = new MessageCapturingHttpConnector();
-        final RequestSigningJsonEncoder requestSigningJsonEncoder = new RequestSigningJsonEncoder(signatureProvider, httpConnector::getRequest);
+        final MessageCapturingHttpConnector httpConnector = new MessageCapturingHttpConnector(signatureProvider);
+        final RequestSigningJsonEncoder requestSigningJsonEncoder = new RequestSigningJsonEncoder(httpConnector::signWithBody);
 
         return WebClient.builder()
                         .exchangeFunction(ExchangeFunctions.create(

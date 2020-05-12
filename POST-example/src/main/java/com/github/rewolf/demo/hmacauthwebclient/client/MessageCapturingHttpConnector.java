@@ -7,7 +7,6 @@ import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
-import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -18,9 +17,10 @@ import java.util.function.Function;
  */
 public class MessageCapturingHttpConnector extends ReactorClientHttpConnector {
     private final ThreadLocal<ClientHttpRequest> request = new ThreadLocal<>();
+    private final SignatureProvider signatureProvider;
 
-    public Optional<ClientHttpRequest> getRequest() {
-        return Optional.ofNullable(request.get());
+    public MessageCapturingHttpConnector(final SignatureProvider signatureProvider) {
+        this.signatureProvider = signatureProvider;
     }
 
     @Override
@@ -32,5 +32,16 @@ public class MessageCapturingHttpConnector extends ReactorClientHttpConnector {
             this.request.set(incomingRequest);
             return requestCallback.apply(incomingRequest);
         });
+    }
+
+    /**
+     * Called by a
+     * @param bodyData
+     */
+    public void signWithBody(byte[] bodyData) {
+        signatureProvider.injectHeader(request.get(), bodyData);
+
+        // release the request from the thread-local
+        request.remove();
     }
 }
