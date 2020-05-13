@@ -13,9 +13,6 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Utility class for generating HMAC-based signatures and injecting the signature into an Authorization header
@@ -26,31 +23,22 @@ import java.util.stream.Collectors;
 public class SignatureProvider {
     private static final String HEX_ENCODED_EMPTY_STRING_SHA256_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private final String clientId;
-    private final Environment environment;
-    private final Mac sha256Hmac;
     private final MessageDigest sha256Hasher;
+    private final SecretKeySpec secretKeySpec;
 
-
-    public SignatureProvider(final Environment environment, final String clientId, final String secretKey) throws NoSuchAlgorithmException, InvalidKeyException {
-        this.environment = environment;
+    public SignatureProvider(final String clientId, final String secretKey) throws NoSuchAlgorithmException, InvalidKeyException {
         this.clientId = clientId;
-
-        // Prepare the encoder to be used to
-        final SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), SignatureMethod.HMAC_SHA256);
         sha256Hasher = MessageDigest.getInstance("SHA-256");
-        sha256Hmac = Mac.getInstance("HmacSHA256");
-        sha256Hmac.init(secretKeySpec);
+        secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), SignatureMethod.HMAC_SHA256);
     }
 
     public Mono<ClientRequest> injectHeader(final ClientRequest clientRequest) {
-        System.out.println("injectHeader");
+        log.debug("injectHeader for: [" + clientRequest.url() +"]");
         final String dateString = ZonedDateTime.now().toString();
         final String authHeader = buildAuthHeaderForRequest(
-                clientRequest.url().getPath(),
-                clientRequest.method().name(),
+                clientRequest,
                 dateString,
-                toQueryString(Collections.emptyMap()),
-                null);
+                new byte[0]);
 
         return Mono.just(ClientRequest.from(clientRequest)
                                       .header(HttpHeaders.DATE, dateString)
@@ -61,24 +49,22 @@ public class SignatureProvider {
     /**
      * Build the Authorization header value for the given request
      *
-     * @param uriPath
-     * @param httpMethod
-     * @param dateHeaderValue
-     * @param body
-     * @return
+     * @param clientRequest the request from which to pull fields for signing
+     * @param dateHeaderValue date string used in date header, for signing
+     * @param body the byte data for the body, for signing
+     * @return the Authorization header value including the signature
      */
-    private String buildAuthHeaderForRequest(final String uriPath,
-                                             final String httpMethod,
+    private String buildAuthHeaderForRequest(final ClientRequest clientRequest,
                                              final String dateHeaderValue,
-                                             final String queryString,
                                              final byte[] body) {
+        final String queryString = clientRequest.url().getQuery();
         final String stringToSign = String.join("\n",
-                                                environment.getHost(),
-                                                uriPath,
+                                                clientRequest.url().getHost(),
+                                                clientRequest.url().getPath(),
                                                 dateHeaderValue,
                                                 clientId,
-                                                queryString,
-                                                httpMethod,
+                                                queryString == null ? "" : queryString,
+                                                clientRequest.method().name(),
                                                 hash(body)
         );
 
@@ -90,14 +76,6 @@ public class SignatureProvider {
         return String.format("Custom-Auth-v1.0 client=%s, signature=%s", clientId, signature);
     }
 
-    private String toQueryString(final Map<String, String> parameters) {
-        return parameters == null || parameters.isEmpty() ? "" : parameters.entrySet()
-                                                                           .stream()
-                                                                           .map(pair -> String.format("%s=%s", pair.getKey(), pair.getValue()))
-                                                                           .collect(Collectors.joining("&"));
-    }
-
-
     /**
      * Sign a string by encode using the HMac based on the secret key generated in the constructor
      *
@@ -105,8 +83,22 @@ public class SignatureProvider {
      * @return the signature
      */
     private synchronized String sign(final String stringToSign) {
-        final byte[] hmacEncode = sha256Hmac.doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
+        final byte[] hmacEncode = getMac().doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
         return bytesToHex(hmacEncode);
+    }
+
+    /**
+     * Return a MAC capable of signing our request. Note that it is not thread safe and has state
+     * @return the Mac
+     */
+    private Mac getMac() {
+        try {
+            final Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(secretKeySpec);
+            return mac;
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("JDK Does not support the auth scheme", e);
+        }
     }
 
 

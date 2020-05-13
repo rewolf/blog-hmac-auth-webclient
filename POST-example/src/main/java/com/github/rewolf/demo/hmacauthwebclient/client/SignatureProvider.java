@@ -22,16 +22,13 @@ import java.time.ZonedDateTime;
 public class SignatureProvider {
     private static final String HEX_ENCODED_EMPTY_STRING_SHA256_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private final String clientId;
-    private final Mac sha256Hmac;
     private final MessageDigest sha256Hasher;
+    private final SecretKeySpec secretKeySpec;
 
     public SignatureProvider(final String clientId, final String secretKey) throws NoSuchAlgorithmException, InvalidKeyException {
         this.clientId = clientId;
-
-        final SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), SignatureMethod.HMAC_SHA256);
         sha256Hasher = MessageDigest.getInstance("SHA-256");
-        sha256Hmac = Mac.getInstance("HmacSHA256");
-        sha256Hmac.init(secretKeySpec);
+        secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), SignatureMethod.HMAC_SHA256);
     }
 
     public void injectHeader(final ClientHttpRequest clientRequest, final byte[] data) {
@@ -51,7 +48,7 @@ public class SignatureProvider {
      *
      * @param clientHttpRequest the request from which to pull fields for signing
      * @param dateHeaderValue date string used in date header, for signing
-     * @param body the byte date for the body, for signing
+     * @param body the byte data for the body, for signing
      * @return the Authorization header value including the signature
      */
     private String buildAuthHeaderForRequest(final ClientHttpRequest clientHttpRequest,
@@ -83,10 +80,23 @@ public class SignatureProvider {
      * @return the signature
      */
     private synchronized String sign(final String stringToSign) {
-        final byte[] hmacEncode = sha256Hmac.doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
+        final byte[] hmacEncode = getMac().doFinal(stringToSign.getBytes(StandardCharsets.UTF_8));
         return bytesToHex(hmacEncode);
     }
 
+    /**
+     * Return a MAC capable of signing our request. Note that it is not thread safe and has state
+     * @return the Mac
+     */
+    private Mac getMac() {
+        try {
+            final Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(secretKeySpec);
+            return mac;
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("JDK Does not support the auth scheme", e);
+        }
+    }
 
     /**
      * Hash the given string with sha256

@@ -27,7 +27,7 @@ public class ClientConfiguration {
                                @Value("${client.id}") final String clientId,
                                @Value("${client.secret}") final String secret) throws Exception {
 
-        final SignatureProvider signatureProvider = new SignatureProvider(environment, clientId, secret);
+        final SignatureProvider signatureProvider = new SignatureProvider(clientId, secret);
 
         return WebClient
                 .builder()
