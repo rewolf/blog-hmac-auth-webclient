@@ -2,9 +2,9 @@ package com.github.rewolf.demo.hmacauthwebclient.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.rewolf.demo.hmacauthwebclient.client.Environment;
-import com.github.rewolf.demo.hmacauthwebclient.client.MessageCapturingHttpConnector;
-import com.github.rewolf.demo.hmacauthwebclient.client.RequestSigningJsonEncoder;
-import com.github.rewolf.demo.hmacauthwebclient.client.SignatureProvider;
+import com.github.rewolf.demo.hmacauthwebclient.client.MessageSigningHttpConnector;
+import com.github.rewolf.demo.hmacauthwebclient.client.BodyProvidingJsonEncoder;
+import com.github.rewolf.demo.hmacauthwebclient.client.Signer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,9 +32,9 @@ public class ClientConfiguration {
                                @Value("${client.id}") final String clientId,
                                @Value("${client.secret}") final String secret) throws Exception {
 
-        final SignatureProvider signatureProvider = new SignatureProvider(clientId, secret);
-        final MessageCapturingHttpConnector httpConnector = new MessageCapturingHttpConnector(signatureProvider);
-        final RequestSigningJsonEncoder requestSigningJsonEncoder = new RequestSigningJsonEncoder(httpConnector::signWithBody);
+        final Signer signer = new Signer(clientId, secret);
+        final MessageSigningHttpConnector httpConnector = new MessageSigningHttpConnector(signer);
+        final BodyProvidingJsonEncoder bodyProvidingJsonEncoder = new BodyProvidingJsonEncoder(httpConnector::signWithBody);
 
         return WebClient.builder()
                         .exchangeFunction(ExchangeFunctions.create(
@@ -42,7 +42,7 @@ public class ClientConfiguration {
                                 ExchangeStrategies
                                         .builder()
                                         .codecs(clientDefaultCodecsConfigurer -> {
-                                            clientDefaultCodecsConfigurer.defaultCodecs().jackson2JsonEncoder(requestSigningJsonEncoder);
+                                            clientDefaultCodecsConfigurer.defaultCodecs().jackson2JsonEncoder(bodyProvidingJsonEncoder);
                                             clientDefaultCodecsConfigurer.defaultCodecs().jackson2JsonDecoder(new Jackson2JsonDecoder(new ObjectMapper(), MediaType.APPLICATION_JSON));
                                         })
                                         .build()

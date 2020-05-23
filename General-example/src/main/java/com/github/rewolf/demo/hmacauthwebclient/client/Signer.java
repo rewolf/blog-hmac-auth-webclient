@@ -2,8 +2,8 @@ package com.github.rewolf.demo.hmacauthwebclient.client;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
-import org.springframework.web.reactive.function.client.ClientRequest;
-import reactor.core.publisher.Mono;
+import org.springframework.http.client.reactive.ClientHttpRequest;
+import org.springframework.lang.Nullable;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -20,58 +20,53 @@ import java.time.ZonedDateTime;
  * @author rewolf
  */
 @Slf4j
-public class SignatureProvider {
+public class Signer {
     private static final String HEX_ENCODED_EMPTY_STRING_SHA256_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private final String clientId;
     private final MessageDigest sha256Hasher;
     private final SecretKeySpec secretKeySpec;
 
-    public SignatureProvider(final String clientId, final String secretKey) throws NoSuchAlgorithmException, InvalidKeyException {
+    public Signer(final String clientId, final String secretKey) throws NoSuchAlgorithmException, InvalidKeyException {
         this.clientId = clientId;
         sha256Hasher = MessageDigest.getInstance("SHA-256");
         secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), SignatureMethod.HMAC_SHA256);
     }
 
-    public Mono<ClientRequest> injectHeader(final ClientRequest clientRequest) {
-        log.debug("injectHeader for: [" + clientRequest.url() +"]");
+    public void injectHeader(final ClientHttpRequest clientRequest, final byte[] data) {
         final String dateString = ZonedDateTime.now().toString();
         final String authHeader = buildAuthHeaderForRequest(
                 clientRequest,
                 dateString,
-                new byte[0]);
+                data);
 
-        return Mono.just(ClientRequest.from(clientRequest)
-                                      .header(HttpHeaders.DATE, dateString)
-                                      .header(HttpHeaders.AUTHORIZATION, authHeader)
-                                      .build());
+        clientRequest.getHeaders().add(HttpHeaders.DATE, dateString);
+        clientRequest.getHeaders().add(HttpHeaders.AUTHORIZATION, authHeader);
     }
 
     /**
      * Build the Authorization header value for the given request
      *
-     * @param clientRequest the request from which to pull fields for signing
+     * @param clientHttpRequest the request from which to pull fields for signing
      * @param dateHeaderValue date string used in date header, for signing
-     * @param body the byte data for the body, for signing
+     * @param body the byte data for the body, for signing. Can be bull
      * @return the Authorization header value including the signature
      */
-    private String buildAuthHeaderForRequest(final ClientRequest clientRequest,
+    private String buildAuthHeaderForRequest(final ClientHttpRequest clientHttpRequest,
                                              final String dateHeaderValue,
-                                             final byte[] body) {
-        final String queryString = clientRequest.url().getQuery();
+                                             @Nullable final byte[] body) {
+        final String queryString = clientHttpRequest.getURI().getQuery();
         final String stringToSign = String.join("\n",
-                                                clientRequest.url().getHost(),
-                                                clientRequest.url().getPath(),
+                                                clientHttpRequest.getURI().getHost(),
+                                                clientHttpRequest.getURI().getPath(),
                                                 dateHeaderValue,
                                                 clientId,
                                                 queryString == null ? "" : queryString,
-                                                clientRequest.method().name(),
+                                                clientHttpRequest.getMethod().name(),
                                                 hash(body)
         );
 
-
         log.debug("\nString-to-sign:\n----\n{}\n----------", stringToSign);
         final String signature = sign(stringToSign);
-
 
         return String.format("Custom-Auth-v1.0 client=%s, signature=%s", clientId, signature);
     }
@@ -101,13 +96,13 @@ public class SignatureProvider {
         }
     }
 
-
     /**
-     * Hash the given string with sha256
+     * Hash the given string with sha256.
      *
+     * @param bytes bytes to hash. null and 0-length treated equally
      * @return sha256-hashed message
      */
-    private synchronized String hash(final byte[] bytes) {
+    private synchronized String hash(@Nullable final byte[] bytes) {
         if (bytes==null || bytes.length==0) {
             return HEX_ENCODED_EMPTY_STRING_SHA256_HASH;
         }

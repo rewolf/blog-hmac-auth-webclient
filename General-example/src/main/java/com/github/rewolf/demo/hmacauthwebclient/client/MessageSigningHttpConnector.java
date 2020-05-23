@@ -18,13 +18,13 @@ import static org.springframework.http.HttpMethod.*;
  *
  * @author rewolf
  */
-public class MessageCapturingHttpConnector extends ReactorClientHttpConnector {
+public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
     private final Set<HttpMethod> BODYLESS_METHODS = Set.of(GET, DELETE, TRACE, HEAD, OPTIONS);
     private final ThreadLocal<ClientHttpRequest> request = new ThreadLocal<>();
-    private final SignatureProvider signatureProvider;
+    private final Signer signer;
 
-    public MessageCapturingHttpConnector(final SignatureProvider signatureProvider) {
-        this.signatureProvider = signatureProvider;
+    public MessageSigningHttpConnector(final Signer signer) {
+        this.signer = signer;
     }
 
     @Override
@@ -44,9 +44,9 @@ public class MessageCapturingHttpConnector extends ReactorClientHttpConnector {
      */
     private void sign(final ClientHttpRequest request) {
         if (BODYLESS_METHODS.contains(request.getMethod())) {
-            deferSignWith(request);
+            signer.injectHeader(request, null);
         } else {
-            signatureProvider.injectHeader(request, null);
+            deferSignWith(request);
         }
     }
 
@@ -65,7 +65,7 @@ public class MessageCapturingHttpConnector extends ReactorClientHttpConnector {
      * @param bodyData
      */
     public void signWithBody(byte[] bodyData) {
-        signatureProvider.injectHeader(request.get(), bodyData);
+        signer.injectHeader(request.get(), bodyData);
         // release the request from the thread-local
         request.remove();
     }

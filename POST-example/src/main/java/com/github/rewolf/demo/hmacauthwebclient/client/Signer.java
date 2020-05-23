@@ -19,13 +19,13 @@ import java.time.ZonedDateTime;
  * @author rewolf
  */
 @Slf4j
-public class SignatureProvider {
+public class Signer {
     private static final String HEX_ENCODED_EMPTY_STRING_SHA256_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
     private final String clientId;
     private final MessageDigest sha256Hasher;
     private final SecretKeySpec secretKeySpec;
 
-    public SignatureProvider(final String clientId, final String secretKey) throws NoSuchAlgorithmException, InvalidKeyException {
+    public Signer(final String clientId, final String secretKey) throws NoSuchAlgorithmException, InvalidKeyException {
         this.clientId = clientId;
         sha256Hasher = MessageDigest.getInstance("SHA-256");
         secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), SignatureMethod.HMAC_SHA256);

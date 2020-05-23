@@ -1,7 +1,7 @@
 package com.github.rewolf.demo.hmacauthwebclient.config;
 
 import com.github.rewolf.demo.hmacauthwebclient.client.Environment;
-import com.github.rewolf.demo.hmacauthwebclient.client.SignatureProvider;
+import com.github.rewolf.demo.hmacauthwebclient.client.Signer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,13 +27,13 @@ public class ClientConfiguration {
                                @Value("${client.id}") final String clientId,
                                @Value("${client.secret}") final String secret) throws Exception {
 
-        final SignatureProvider signatureProvider = new SignatureProvider(clientId, secret);
+        final Signer signer = new Signer(clientId, secret);
 
         return WebClient
                 .builder()
                 .baseUrl(String.format("%s://%s/%s", environment.getProtocol(), environment.getHost(), environment.getBasePath()))
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .filter(ExchangeFilterFunction.ofRequestProcessor(signatureProvider::injectHeader))
+                .filter(ExchangeFilterFunction.ofRequestProcessor(signer::injectHeader))
                 .build();
     }
 }

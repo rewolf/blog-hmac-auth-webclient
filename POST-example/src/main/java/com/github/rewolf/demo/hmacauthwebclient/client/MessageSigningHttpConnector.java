@@ -15,12 +15,12 @@ import java.util.function.Function;
  *
  * @author rewolf
  */
-public class MessageCapturingHttpConnector extends ReactorClientHttpConnector {
+public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
     private final ThreadLocal<ClientHttpRequest> request = new ThreadLocal<>();
-    private final SignatureProvider signatureProvider;
+    private final Signer signer;
 
-    public MessageCapturingHttpConnector(final SignatureProvider signatureProvider) {
-        this.signatureProvider = signatureProvider;
+    public MessageSigningHttpConnector(final Signer signer) {
+        this.signer = signer;
     }
 
     @Override
@@ -41,7 +41,7 @@ public class MessageCapturingHttpConnector extends ReactorClientHttpConnector {
      * @param bodyData
      */
     public void signWithBody(byte[] bodyData) {
-        signatureProvider.injectHeader(request.get(), bodyData);
+        signer.injectHeader(request.get(), bodyData);
 
         // release the request from the thread-local
         request.remove();

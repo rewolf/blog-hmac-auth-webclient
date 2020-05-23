@@ -17,8 +17,8 @@ import java.util.function.Consumer;
  * @author rewolf
  */
 @RequiredArgsConstructor
-public class RequestSigningJsonEncoder extends Jackson2JsonEncoder {
-    private final Consumer<byte[]> bodySigner;
+public class BodyProvidingJsonEncoder extends Jackson2JsonEncoder {
+    private final Consumer<byte[]> bodyConsumer;
 
     @Override
     public DataBuffer encodeValue(final Object value, final DataBufferFactory bufferFactory,
@@ -28,7 +28,7 @@ public class RequestSigningJsonEncoder extends Jackson2JsonEncoder {
         final DataBuffer data = super.encodeValue(value, bufferFactory, valueType, mimeType, hints);
 
         // Interception: Generate Signature and inject header into request
-        bodySigner.accept(extractBytes(data));
+        bodyConsumer.accept(extractBytes(data));
 
         // Return the data as normal
         return data;
