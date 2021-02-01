@@ -1,16 +1,11 @@
 package com.github.rewolf.demo.hmacauthwebclient.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.rewolf.demo.hmacauthwebclient.client.Environment;
-import com.github.rewolf.demo.hmacauthwebclient.client.MessageSigningHttpConnector;
-import com.github.rewolf.demo.hmacauthwebclient.client.BodyProvidingJsonEncoder;
-import com.github.rewolf.demo.hmacauthwebclient.client.Signer;
+import com.github.rewolf.demo.hmacauthwebclient.client.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.json.Jackson2JsonDecoder;
 import org.springframework.web.reactive.function.client.ExchangeFunctions;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -21,9 +16,8 @@ public class ClientConfiguration {
     @Bean
     public Environment clientEnvironment() {
         return Environment.builder()
-                          .protocol("http")
-                          .host("requestbin.net")
-                          .basePath("/r")
+                          .protocol("https")
+                          .basePath("/")
                           .build();
     }
 
@@ -34,7 +28,8 @@ public class ClientConfiguration {
 
         final Signer signer = new Signer(clientId, secret);
         final MessageSigningHttpConnector httpConnector = new MessageSigningHttpConnector(signer);
-        final BodyProvidingJsonEncoder bodyProvidingJsonEncoder = new BodyProvidingJsonEncoder(httpConnector::signWithBody);
+        final BodyProvidingJsonEncoder bodyProvidingJsonEncoder = new BodyProvidingJsonEncoder(signer);
+        final JsonProvidingDecoder decoder = new JsonProvidingDecoder();
 
         return WebClient.builder()
                         .exchangeFunction(ExchangeFunctions.create(
@@ -43,7 +38,7 @@ public class ClientConfiguration {
                                         .builder()
                                         .codecs(clientDefaultCodecsConfigurer -> {
                                             clientDefaultCodecsConfigurer.defaultCodecs().jackson2JsonEncoder(bodyProvidingJsonEncoder);
-                                            clientDefaultCodecsConfigurer.defaultCodecs().jackson2JsonDecoder(new Jackson2JsonDecoder(new ObjectMapper(), MediaType.APPLICATION_JSON));
+                                            clientDefaultCodecsConfigurer.defaultCodecs().jackson2JsonDecoder(decoder);
                                         })
                                         .build()
                         ))

@@ -5,6 +5,7 @@ import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.client.reactive.ClientHttpResponse;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import java.net.URI;
 import java.util.Set;
@@ -19,8 +20,8 @@ import static org.springframework.http.HttpMethod.*;
  * @author rewolf
  */
 public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
+    public static final String REQUEST_CONTEXT_KEY = "REQUEST_CONTEXT_KEY";
     private final Set<HttpMethod> BODYLESS_METHODS = Set.of(GET, DELETE, TRACE, HEAD, OPTIONS);
-    private final ThreadLocal<ClientHttpRequest> request = new ThreadLocal<>();
     private final Signer signer;
 
     public MessageSigningHttpConnector(final Signer signer) {
@@ -31,42 +32,20 @@ public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
     public Mono<ClientHttpResponse> connect(final HttpMethod method, final URI uri,
                                             final Function<? super ClientHttpRequest, Mono<Void>> requestCallback) {
         return super.connect(method, uri, incomingRequest -> {
-            sign(incomingRequest);
-            return requestCallback.apply(incomingRequest);
+            signBodyless(incomingRequest);
+            return requestCallback.apply(incomingRequest)
+                                  .subscriberContext(Context.of(REQUEST_CONTEXT_KEY, incomingRequest));
         });
     }
 
     /**
-     * Given the ClientHttpRequest, depending on whether a body is required or not, decide to sign the request
-     * immediately or defer until the serialized body is provided.
+     * Given the ClientHttpRequest, if a body is not required, sign the request immediately.
      *
      * @param request current http request to sign
      */
-    private void sign(final ClientHttpRequest request) {
+    private void signBodyless(final ClientHttpRequest request) {
         if (BODYLESS_METHODS.contains(request.getMethod())) {
             signer.injectHeader(request, null);
-        } else {
-            deferSignWith(request);
         }
-    }
-
-    /**
-     * Save message for signing later when body has been encoded
-     * @param request ongoing request for this thread.
-     */
-    private void deferSignWith(final ClientHttpRequest request) {
-        this.request.set(request);
-    }
-
-    /**
-     * Will perform the signing and injection on the request once the bytes are provided. Also releases the request
-     * from the ThreadLocal
-     *
-     * @param bodyData
-     */
-    public void signWithBody(byte[] bodyData) {
-        signer.injectHeader(request.get(), bodyData);
-        // release the request from the thread-local
-        request.remove();
     }
 }

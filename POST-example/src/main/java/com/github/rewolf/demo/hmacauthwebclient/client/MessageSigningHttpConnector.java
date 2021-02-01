@@ -18,9 +18,7 @@ import java.util.function.Function;
  */
 public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
   
-	public static final String REQUEST_CONTEXT_KEY = "IBOS_REQUEST_CONTEXT_KEY";
-    
-  
+	public static final String REQUEST_CONTEXT_KEY = "REQUEST_CONTEXT_KEY";
 
     @Override
     public Mono<ClientHttpResponse> connect(final HttpMethod method, final URI uri,
@@ -28,7 +26,8 @@ public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
         // execute the super-class method as usual, but insert an interception into the requestCallback that can
         // capture the request to be saved for this thread.
     	  return super.connect(method, uri, incomingRequest -> {      
-              return requestCallback.apply(incomingRequest).subscriberContext(Context.of(REQUEST_CONTEXT_KEY, incomingRequest));
+              return requestCallback.apply(incomingRequest)
+                                    .subscriberContext(Context.of(REQUEST_CONTEXT_KEY, incomingRequest));
           });
     }
 
