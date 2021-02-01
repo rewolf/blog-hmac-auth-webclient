@@ -5,6 +5,7 @@ import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.client.reactive.ClientHttpResponse;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import java.net.URI;
 import java.util.function.Function;
@@ -16,34 +17,20 @@ import java.util.function.Function;
  * @author rewolf
  */
 public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
-    private final ThreadLocal<ClientHttpRequest> request = new ThreadLocal<>();
-    private final Signer signer;
-
-    public MessageSigningHttpConnector(final Signer signer) {
-        this.signer = signer;
-    }
+  
+	public static final String REQUEST_CONTEXT_KEY = "IBOS_REQUEST_CONTEXT_KEY";
+    
+  
 
     @Override
     public Mono<ClientHttpResponse> connect(final HttpMethod method, final URI uri,
                                             final Function<? super ClientHttpRequest, Mono<Void>> requestCallback) {
         // execute the super-class method as usual, but insert an interception into the requestCallback that can
         // capture the request to be saved for this thread.
-        return super.connect(method, uri, incomingRequest -> {
-            this.request.set(incomingRequest);
-            return requestCallback.apply(incomingRequest);
-        });
+    	  return super.connect(method, uri, incomingRequest -> {      
+              return requestCallback.apply(incomingRequest).subscriberContext(Context.of(REQUEST_CONTEXT_KEY, incomingRequest));
+          });
     }
 
-    /**
-     * Will perform the signing and injection on the request once the bytes are provided. Also releases the request
-     * from the ThreadLocal
-     *
-     * @param bodyData
-     */
-    public void signWithBody(byte[] bodyData) {
-        signer.injectHeader(request.get(), bodyData);
-
-        // release the request from the thread-local
-        request.remove();
-    }
+   
 }
