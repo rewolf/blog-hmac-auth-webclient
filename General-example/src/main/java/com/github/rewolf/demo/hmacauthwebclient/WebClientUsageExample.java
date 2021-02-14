@@ -30,9 +30,7 @@ public class WebClientUsageExample implements CommandLineRunner {
         final List result = webClient.get()
                                      .uri("http://worldtimeapi.org/api/timezone")
                                      .header(HttpHeaders.ACCEPT, APPLICATION_JSON_VALUE)
-                                     .exchange()
-                                     .block()
-                                     .bodyToMono(List.class)
+                                     .exchangeToMono(r -> r.bodyToMono(List.class))
                                      .block();
 
         System.out.println("Response: " + result);
@@ -47,9 +45,7 @@ public class WebClientUsageExample implements CommandLineRunner {
                                        .uri("https://requestbin.net" + pathPart + "/users")
                                        .contentType(MediaType.APPLICATION_JSON)
                                        .body(BodyInserters.fromValue(testUser))
-                                       .exchange()
-                                       .block()
-                                       .bodyToMono(String.class)
+                                       .exchangeToMono(r -> r.bodyToMono(String.class))
                                        .block();
 
         System.out.println("Response: " + result);

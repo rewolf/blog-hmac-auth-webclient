@@ -23,9 +23,7 @@ public class WebClientUsageExample implements CommandLineRunner {
                                        .uri(args[0] + "/users")
                                        .contentType(MediaType.APPLICATION_JSON)
                                        .body(BodyInserters.fromValue(testUser))
-                                       .exchange()
-                                       .block()
-                                       .bodyToMono(String.class)
+                                       .exchangeToMono(r -> r.bodyToMono(String.class))
                                        .block();
 
         System.out.println("Response: " + result);

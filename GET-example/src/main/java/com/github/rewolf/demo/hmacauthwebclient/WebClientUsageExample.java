@@ -19,9 +19,7 @@ public class WebClientUsageExample implements CommandLineRunner {
         // Use the client to post our data
         final String result = webClient.get()
                                        .uri(args[0] + "?fun=2&not=cool")
-                                       .exchange()
-                                       .block()
-                                       .bodyToMono(String.class)
+                                       .exchangeToMono(r -> r.bodyToMono(String.class))
                                        .block();
 
         System.out.println("Response: " + result);
