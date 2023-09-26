@@ -6,7 +6,9 @@ plugins {
 
 group = 'com.github.rewolf.demo'
 version = '1.0.0'
-sourceCompatibility = '11'
+java {
+    sourceCompatibility = '11'
+}
 
 repositories {
     mavenCentral()
