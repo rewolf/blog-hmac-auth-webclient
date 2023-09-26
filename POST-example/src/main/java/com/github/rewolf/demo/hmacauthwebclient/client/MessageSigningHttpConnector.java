@@ -25,10 +25,8 @@ public class MessageSigningHttpConnector extends ReactorClientHttpConnector {
                                             final Function<? super ClientHttpRequest, Mono<Void>> requestCallback) {
         // execute the super-class method as usual, but insert an interception into the requestCallback that can
         // capture the request to be saved for this thread.
-    	  return super.connect(method, uri, incomingRequest -> {      
-              return requestCallback.apply(incomingRequest)
-                                    .subscriberContext(Context.of(REQUEST_CONTEXT_KEY, incomingRequest));
-          });
+        return super.connect(method, uri, incomingRequest -> requestCallback.apply(incomingRequest)
+                .contextWrite(Context.of(REQUEST_CONTEXT_KEY, incomingRequest)));
     }
 
    
