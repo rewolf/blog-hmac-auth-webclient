@@ -1,6 +1,4 @@
 # HMAC Auth with WebClient Demo
-This project accompanies a blog found at https://andrew-flower.com/blog/Custom-HMAC-Auth-with-Spring-WebClient
-
 It is an example of how to do HMAC-based auth using Spring's WebClient.
 
 There are two subdirectories here corresponding to the two sections.
