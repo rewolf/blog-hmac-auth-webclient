@@ -27,15 +27,15 @@ public class BodyProvidingJsonEncoder extends Jackson2JsonEncoder {
     @Override
 	public Flux<DataBuffer> encode(Publisher<?> inputStream, DataBufferFactory bufferFactory,
 			ResolvableType elementType, @Nullable MimeType mimeType, @Nullable Map<String, Object> hints) {
-    	
-    	return super.encode(inputStream, bufferFactory, elementType, mimeType, hints).flatMap(db -> {
-    		return Mono.subscriberContext().map(sc -> {    		
-    			ClientHttpRequest clientHttpRequest = sc.get(MessageSigningHttpConnector.REQUEST_CONTEXT_KEY);  
-    		
-    			signer.injectHeader( clientHttpRequest, extractBytes(db));    			
-    			return db;
-    		});
-    	});
+
+        return super.encode(inputStream, bufferFactory, elementType, mimeType, hints)
+                .flatMap(db -> Mono.deferContextual(Mono::just)
+                        .map(sc -> {
+                            ClientHttpRequest clientHttpRequest = sc.get(MessageSigningHttpConnector.REQUEST_CONTEXT_KEY);
+
+                            signer.injectHeader(clientHttpRequest, extractBytes(db));
+                            return db;
+                        }));
     }
 
     /**
